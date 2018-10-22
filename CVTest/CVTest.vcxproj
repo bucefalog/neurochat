@@ -124,29 +124,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Resource.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Resource.h" />
-    <ClInclude Include="Resource.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="CVTest.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="..\resources\filters\filter_0.png" />
-    <Image Include="..\resources\filters\filter_1.png" />
-    <Image Include="..\resources\filters\filter_2.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <Xml Include="..\resources\haarcascades\haarcascade_eye_tree_eyeglasses.xml" />
-    <Xml Include="..\resources\haarcascades\haarcascade_frontalface_alt.xml" />
-  </ItemGroup>
+
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\opencv.win.native.redist.320.1.1-vs141\build\native\opencv.win.native.redist.targets" Condition="Exists('..\packages\opencv.win.native.redist.320.1.1-vs141\build\native\opencv.win.native.redist.targets')" />

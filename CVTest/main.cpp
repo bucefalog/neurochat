@@ -2,7 +2,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect.hpp>
 #include <iostream>
-#include "Resource.h"
 using namespace cv;
 using namespace std;
 
@@ -75,14 +74,12 @@ int main() {
 
 	//-- 1. Load the cascades
 	
-	face_cascade.read();
-	FileNode n();
+
 
 	if (!face_cascade.load(face_cascade_name)) { printf("--(!)Error loading\n"); return -1; };
 	if (!eyes_cascade.load(eyes_cascade_name)) { printf("--(!)Error loading\n"); return -1; };
 
 
-	Resource r("IDR_XML","xml");
 	system("pause");
 
 
