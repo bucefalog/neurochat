@@ -6,7 +6,8 @@
 #include <olectl.h>
 #include <dvdmedia.h>
 #include "filters.h"
-#include <opencv2/objdetect.hpp>
+#include "Camera.h"
+
 //#include <atlstr.h>
 
 
@@ -16,101 +17,9 @@
 ///////////////////////////////////////////////////////////////////////////
 
 /** Global variables */
-String cascadePath = "C:\\resources\\haarcascades\\";
-//String cascadePath = "D:\\opencv\\build\\share\\OpenCV\\haarcascades\\";
-String face_cascade_name = cascadePath + "haarcascade_frontalface_alt.xml";
-String eyes_cascade_name = cascadePath + "haarcascade_eye_tree_eyeglasses.xml";
-CascadeClassifier face_cascade;
-CascadeClassifier eyes_cascade;
-RNG rng(12345);
-
-bool loadedResourcePath = false;
-
-#define NUM_FILTERS 3
-Mat overlays[NUM_FILTERS], masks[NUM_FILTERS];
 
 
-void splitRGBA(Mat& image, Mat& rgb, Mat& mask) {
-
-	cvtColor(image, rgb, COLOR_RGBA2RGB);
-
-	vector<Mat> channels(4);
-	split(image, channels);
-	threshold(channels[3], mask, 1, 255, 0);
-
-}
-
-bool loadOverlays() {
-
-
-	if (!face_cascade.load(face_cascade_name)) {
-		return false;
-	}
-	if (!eyes_cascade.load(eyes_cascade_name)) { 
-		return false;
-	};
-
-	//std::string filterFile = "C:\\filters\\filter_";
-	std::string filterFile = "C:\\resources\\filters\\filter_";
-	for (int i = 0; i < NUM_FILTERS; i++) {
-
-		std::string file = filterFile + std::to_string(i) + ".png";
-		Mat image = imread(file, IMREAD_UNCHANGED);
-		resize(image, image, Size(100, 100));
-		splitRGBA(image, overlays[i], masks[i]);
-
-	}
-
-	return true;
-
-}
-
-void applyOverlay(Mat &dst, int filterID,int x, int y) {
-
-	Mat overlay = overlays[filterID];
-	Mat mask = masks[filterID];
-
-	Mat roi = dst(Rect(x, y, overlay.cols, overlay.cols));
-	overlay.copyTo(roi, mask);
-
-}
-
-
-/** @function detectAndDisplay */
-void detectAndDisplay(Mat& frame,int &leftEyeX,int &leftEyeY)
-{
-	std::vector<Rect> faces;
-	Mat frame_gray;
-
-	cvtColor(frame, frame_gray, CV_BGR2GRAY);
-	equalizeHist(frame_gray, frame_gray);
-
-	//-- Detect faces
-	face_cascade.detectMultiScale(frame_gray, faces, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-
-	for (size_t i = 0; i < faces.size(); i++)
-	{
-		Point center(faces[i].x + faces[i].width*0.5, faces[i].y + faces[i].height*0.5);
-		ellipse(frame, center, Size(faces[i].width*0.5, faces[i].height*0.5), 0, 0, 360, Scalar(255, 0, 255), 4, 8, 0);
-
-		Mat faceROI = frame_gray(faces[i]);
-		std::vector<Rect> eyes;
-
-		//-- In each face, detect eyes
-		eyes_cascade.detectMultiScale(faceROI, eyes, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-
-		for (size_t j = 0; j < eyes.size(); j++)
-		{
-			Point center(faces[i].x + eyes[j].x + eyes[j].width*0.5, faces[i].y + eyes[j].y + eyes[j].height*0.5);
-			int radius = cvRound((eyes[j].width + eyes[j].height)*0.25);
-			//circle(frame, center, radius, Scalar(255, 0, 0), 4, 8, 0);
-		}
-	}
-}
-
-
-
-
+//RNG rng(12345);
 
 
 
@@ -172,14 +81,13 @@ CVCamStream::CVCamStream(HRESULT *phr, CVCam *pParent, LPCWSTR pPinName) :
 {
 	//create camera stream
 
-	//if (!setPath()) {
 
-	//}
-
-	if (  !(loadedResourcePath= loadOverlays())) {
-		//ADD ERROR CODE
+	if (  !loadOverlays() ) {
+		MessageBox(NULL,L"Overlays error",L"Overlays error",0);
 	}
-	webcam = new VideoCapture(2);
+
+	openCamera();
+	
     // Set the default media type as 320x240x24@15
 	//GetMediaType(4, &m_mt);
     GetMediaType(8, &m_mt);//640x480
@@ -187,9 +95,8 @@ CVCamStream::CVCamStream(HRESULT *phr, CVCam *pParent, LPCWSTR pPinName) :
 
 CVCamStream::~CVCamStream()
 {
-	webcam->release();
-	delete webcam;
-	destroyWindow("webcam");
+	releaseCamera();
+
 } 
 
 HRESULT CVCamStream::QueryInterface(REFIID riid, void **ppv)
@@ -212,45 +119,6 @@ HRESULT CVCamStream::QueryInterface(REFIID riid, void **ppv)
 //  Camera device.
 //////////////////////////////////////////////////////////////////////////
 
-#define SHARED_MEM_SIZE 4
-
-int getFilterID() {
-	int filterId = -1;
-
-	//open shared memory
-	HANDLE hMapFile = hMapFile = OpenFileMapping(
-			FILE_MAP_ALL_ACCESS,   // read/write access
-			FALSE,                 // do not inherit the name
-			TEXT("bciSharedMem"));               // name of mapping object
-
-	//check if success
-	if (hMapFile != NULL)
-	{
-
-		//map file
-		LPCTSTR pBuf = (LPTSTR)MapViewOfFile(hMapFile, // handle to map object
-			FILE_MAP_ALL_ACCESS,  // read/write permission
-			0,
-			0,
-			SHARED_MEM_SIZE);
-
-		//check if success
-		if (pBuf != NULL)
-		{
-			//read memory
-			CopyMemory(&filterId, (PVOID)pBuf, sizeof(int));
-
-			//unmap file
-			UnmapViewOfFile(pBuf);
-
-		}
-		//close file
-		CloseHandle(hMapFile);
-	}
-
-	//return filter id read, -1 otherwise
-	return filterId;
-}
 
 
 
@@ -271,48 +139,10 @@ HRESULT CVCamStream::FillBuffer(IMediaSample *pms)
     pms->SetSyncPoint(TRUE);
 
 	
-
-	Mat cameraFrame;
-	//imshow("cam", cameraFrame);
-	webcam->read(cameraFrame);
-	resize(cameraFrame, cameraFrame, Size(width, height));
-
-	int leftEyeX, leftEyeY;
-	detectAndDisplay(cameraFrame, leftEyeX, leftEyeY);
-
-	//cvPutText()
-	//putText()
-	const char * options[4] = { "ERROR2","Filter 1","Filter 2","filter 3" };
-	int filterId = getFilterID();
-	putText(cameraFrame, options[filterId+1], cvPoint(200, 200),
-		FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200, 200, 250), 1, CV_AA);
-
-	putText(cameraFrame, loadedResourcePath ? "NoPath" : "path", cvPoint(250, 250),
-		FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200, 200, 250), 1, CV_AA);
-
-	if (filterId >= 0) {
-		applyOverlay(cameraFrame, filterId , 50, 100);
-	}
-	
-	//flip image to write data
-	flip(cameraFrame, cameraFrame, -1);
+	//DRAW DATA
     BYTE *pData;
-    long lDataLen;
     pms->GetPointer(&pData);
-	BYTE* frameData = cameraFrame.data;
-    lDataLen = pms->GetSize();
-    for(int i = 0; i < lDataLen; ++i)
-        pData[i] = frameData[i];
-
-	//int id = 0;
-	//for (int i = 0; i < width; i++) {
-	//	for (int j = 0; j < height; j++) {
-	//		cameraFrame[]
-	//	}
-	//}
-
-	
-
+	drawImage(pData, pms->GetSize());
 
     return NOERROR;
 } // FillBuffer
@@ -332,9 +162,7 @@ STDMETHODIMP CVCamStream::Notify(IBaseFilter * pSender, Quality q)
 HRESULT CVCamStream::SetMediaType(const CMediaType *pmt)
 {
     DECLARE_PTR(VIDEOINFOHEADER, pvi, pmt->Format());
-	width = pvi->bmiHeader.biWidth;
-	height = pvi->bmiHeader.biHeight;
-	if (height < 0) height = -height;
+	setDimensions(pvi->bmiHeader.biWidth, pvi->bmiHeader.biHeight);
     HRESULT hr = CSourceStream::SetMediaType(pmt);
     return hr;
 }

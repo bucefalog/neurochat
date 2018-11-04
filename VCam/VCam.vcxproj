@@ -284,11 +284,13 @@
   <ItemGroup>
     <ClCompile Include="Dll.cpp" />
     <ClCompile Include="Filters.cpp" />
+    <ClCompile Include="Camera.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Filters.def" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="Filters.h" />
   </ItemGroup>
   <ItemGroup>

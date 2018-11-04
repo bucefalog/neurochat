@@ -5,11 +5,10 @@
 EXTERN_C const GUID CLSID_VirtualCam;
 
 
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+
 #include <iostream>
 
-using namespace cv;
+
 using namespace std;
 
 
@@ -70,7 +69,7 @@ public:
     CVCamStream(HRESULT *phr, CVCam *pParent, LPCWSTR pPinName);
     ~CVCamStream();
 
-	cv::VideoCapture *webcam;
+	
 
     HRESULT FillBuffer(IMediaSample *pms);
     HRESULT DecideBufferSize(IMemAllocator *pIMemAlloc, ALLOCATOR_PROPERTIES *pProperties);
@@ -86,8 +85,7 @@ private:
     HBITMAP m_hLogoBmp;
     CCritSec m_cSharedState;
     IReferenceClock *m_pClock;
-	int width = 640;
-	int height = 480;
+
 
 };
 
