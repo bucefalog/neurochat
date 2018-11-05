@@ -235,7 +235,7 @@ void overlayImage(const cv::Mat &background, const cv::Mat &foreground, cv::Mat 
 void applyOverlay(Mat &dst, int filterID) {
 
 	if (filterID == -1) {
-		putText(dst, "Cant read filterID", cvPoint(250, 250), FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200, 200, 250), 1, CV_AA);
+		putText(dst, "Cant read filterID", cvPoint(15, 75), FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200, 200, 250), 1, CV_AA);
 		return;
 	}
 
@@ -244,7 +244,7 @@ void applyOverlay(Mat &dst, int filterID) {
 	getFacePosition(facePosition);
 
 	if (facePosition.width == -1) {
-		putText(dst, "Face not detected", cvPoint(250, 250),FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200, 200, 250), 1, CV_AA);
+		putText(dst, "Face not detected", cvPoint(50, 100),FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200, 200, 250), 1, CV_AA);
 	}
 	else {
 
@@ -277,7 +277,8 @@ void drawImage(BYTE *pData, long length) {
 	Mat cameraFrame;
 	getFrameCopy(cameraFrame);
 
-	applyOverlay(cameraFrame, getFilterID());
+	int filter_id = getFilterID();
+	applyOverlay(cameraFrame, filter_id);
 
 
 
