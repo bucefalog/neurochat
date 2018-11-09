@@ -1,17 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Image Include="..\resources\filters\filter_0.png">
-      <Filter>resources\filters</Filter>
-    </Image>
-    <Image Include="..\resources\filters\filter_1.png">
-      <Filter>resources\filters</Filter>
-    </Image>
-    <Image Include="..\resources\filters\filter_2.png">
-      <Filter>resources\filters</Filter>
-    </Image>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -32,23 +21,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Xml Include="..\resources\haarcascades\haarcascade_eye_tree_eyeglasses.xml">
-      <Filter>resources\haarcascades</Filter>
-    </Xml>
-    <Xml Include="..\resources\haarcascades\haarcascade_frontalface_alt.xml">
-      <Filter>resources\haarcascades</Filter>
-    </Xml>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="CVTest.rc">
-      <Filter>resources</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="resource.h">
-      <Filter>resources</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource.h">
+    <ClInclude Include="Camera.h">
       <Filter>headers</Filter>
     </ClInclude>
   </ItemGroup>
@@ -56,7 +29,7 @@
     <ClCompile Include="main.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Resource.cpp">
+    <ClCompile Include="Camera.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

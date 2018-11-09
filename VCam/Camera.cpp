@@ -1,13 +1,14 @@
 
 #include "Camera.h"
-#include <streams.h>
-#include <iostream>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect.hpp>
+#include <algorithm>
 
 using namespace std;
 using namespace cv;
+
+
 
 namespace {
 
@@ -31,8 +32,8 @@ namespace {
 	//OVERLAYS
 	#define NUM_FILTERS 3
 	Mat overlays[NUM_FILTERS], masks[NUM_FILTERS];
-	int centers[3][2] = { {-20,200},{30,-40},{20,-80} };
-	float scalers[3][2] = { {1.5,1},{.7,.55},{1,.6} };
+	int centers[NUM_FILTERS][2] = { {-20,200},{30,-40},{20,-80} };
+	float scalers[NUM_FILTERS][2] = { {1.5,1},{.7,.55},{1,.6} };
 
 
 	//ERROR INFO
@@ -44,6 +45,7 @@ namespace {
 	//FACE DETECTED
 	Rect facePosition(-1, -1, -1, -1);
 
+
 }
 
 
@@ -52,7 +54,7 @@ void splitRGBA(Mat& image, Mat& rgb, Mat& mask) {
 
 	cvtColor(image, rgb, COLOR_RGBA2RGB);
 
-	vector<Mat> channels(4);
+	std::vector<Mat> channels(4);
 	split(image, channels);
 	threshold(channels[3], mask, 1, 255, 0);
 
@@ -187,49 +189,60 @@ void findFace() {
 
 
 	//SET DETECTION
-	setFacePosition(faces.size() == 0 ? Rect(-1, -1, -1, 1) : faces[0]);
-	
+
+	//setFacePosition(faces.size() == 0 ? Rect(-1, -1, -1, 1) : faces[0]);
+	facePosition = faces.size() == 0 ? Rect(-1, -1, -1, 1) : faces[0];
 
 }
 
 
-void overlayImage(const cv::Mat &background, const cv::Mat &foreground, cv::Mat &output, Rect location)
+
+void overlayImage(cv::Mat &background, cv::Mat &foreground, cv::Mat &mask, cv::Mat &output, Rect location)
 {
-	background.copyTo(output);
-	// start at the row indicated by location, or at row 0 if location.y is negative.
-	for (int y = std::max(location.y, 0); y < background.rows; ++y)
-	{
-		int fY = y - location.y; // because of the translation
-								 // we are done of we have processed all rows of the foreground image.
-		if (fY >= foreground.rows)
-			break;
-		// start at the column indicated by location, 
-		// or at column 0 if location.x is negative.
-		for (int x = std::max(location.x, 0); x < background.cols; ++x)
-		{
-			int fX = x - location.x; // because of the translation.
-									 // we are done with this row if the column is outside of the foreground image.
-			if (fX >= foreground.cols)
-				break;
-			// determine the opacity of the foregrond pixel, using its fourth (alpha) channel.
-			double opacity =
-				((double)foreground.data[fY * foreground.step + fX * foreground.channels() + 3])
-				/ 255.;
-			// and now combine the background and foreground pixel, using the opacity, 
-			// but only if opacity > 0.
-			for (int c = 0; opacity > 0 && c < output.channels(); ++c)
-			{
-				unsigned char foregroundPx =
-					foreground.data[fY * foreground.step + fX * foreground.channels() + c];
-				unsigned char backgroundPx =
-					background.data[y * background.step + x * background.channels() + c];
-				output.data[y*output.step + output.channels()*x + c] =
-					backgroundPx * (1. - opacity) + foregroundPx * opacity;
-			}
-		}
-	}
-}
+	//int x0, xf, y0, yf;
+	int x = max(location.x,0);
+	int y = max(location.y,0);
+	int w = min(background.cols, location.x + foreground.cols) - x;
+	int h = min(background.rows, location.y + foreground.rows) - y;
 
+	if ( h<= 0 || w <=0) return;
+
+	Rect backgroundRect(x, y, w, h);
+	Rect foregroundRect(max(0, -location.x), max(0, -location.y), w,h);
+
+	foreground(foregroundRect).copyTo(background(backgroundRect), mask(foregroundRect));
+
+
+
+	//background.copyTo(output);
+	//// start at the row indicated by location, or at row 0 if location.y is negative.
+	//for (int y = std::max(location.y, 0); y < background.rows; ++y)
+	//{
+	//	int fY = y - location.y; // because of the translation
+	//							 // we are done of we have processed all rows of the foreground image.
+	//	if (fY >= foreground.rows) break;
+	//	// start at the column indicated by location, 
+	//	// or at column 0 if location.x is negative.
+	//	for (int x = std::max(location.x, 0); x < background.cols; ++x)
+	//	{
+	//		int fX = x - location.x; // because of the translation. we are done with this row if the column is outside of the foreground image.
+	//		if (fX >= foreground.cols)
+	//			break;
+	//		// determine the opacity of the foregrond pixel, using its fourth (alpha) channel.
+	//		double opacity = ((double)foreground.data[fY * foreground.step + fX * foreground.channels() + 3]) / 255.;
+
+	//		// and now combine the background and foreground pixel, using the opacity,  but only if opacity > 0.
+	//		for (int c = 0; opacity > 0 && c < output.channels(); ++c)
+	//		{
+	//			unsigned char foregroundPx = foreground.data[fY * foreground.step + fX * foreground.channels() + c];
+	//			unsigned char backgroundPx = background.data[y * background.step + x * background.channels() + c];
+	//			output.data[y*output.step + output.channels()*x + c] = backgroundPx * (1. - opacity) + foregroundPx * opacity;
+	//		}
+	//	}
+	//}
+
+
+}
 
 
 void applyOverlay(Mat &dst, int filterID) {
@@ -253,15 +266,22 @@ void applyOverlay(Mat &dst, int filterID) {
 		Mat mask = masks[filterID];
 
 
+		//Point center(facePosition.x + facePosition.width*0.5, facePosition.y + facePosition.height*0.5);
+		//ellipse(dst, center, Size(facePosition.width*0.5, facePosition.height*0.5), 0, 0, 360, Scalar(255, 0, 255), 4, 8, 0);
+
 		Mat imageCopy;
-		resize(overlay, imageCopy, Size(facePosition.width*scalers[filterID][1], facePosition.height*scalers[filterID][1]));
+		Mat resizedMask;
+		resize(overlay, imageCopy, Size(facePosition.width*scalers[filterID][0], facePosition.height*scalers[filterID][1]));
+		resize(mask, resizedMask, Size(facePosition.width*scalers[filterID][0], facePosition.height*scalers[filterID][1]));
 		facePosition.x += centers[filterID][0];
 		facePosition.y += centers[filterID][1];
-		overlayImage(dst, imageCopy, dst, facePosition);
+		overlayImage(dst, imageCopy, resizedMask, dst, facePosition);
 
 	}
 
 }
+
+
 
 
 

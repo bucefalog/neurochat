@@ -84,9 +84,7 @@ int _tmain()
 
 	}
 
-	UnmapViewOfFile(pBuf);
-
-	CloseHandle(hMapFile);
+	
 
 	return 0;
 }
