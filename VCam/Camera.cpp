@@ -4,6 +4,9 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/objdetect.hpp>
 #include <algorithm>
+#include <atomic>
+#include<mutex>
+#include<thread>
 
 using namespace std;
 using namespace cv;
@@ -23,6 +26,7 @@ namespace {
 	cv::VideoCapture *webcam = 0;
 	Mat originalFrame;				//frame to store current original image
 	int width=640, height=480;		//size of image (user defined)
+	atomic<bool> frameIsValid = false;
 
 	//CLASSIFIERS
 	CascadeClassifier face_cascade;
@@ -44,6 +48,12 @@ namespace {
 
 	//FACE DETECTED
 	Rect facePosition(-1, -1, -1, -1);
+
+	//face processing thread and related variables
+	thread faceDetector;
+	atomic<bool> cameraOpen;
+	mutex frame_mutex;
+	mutex face_mutex;
 
 
 }
@@ -93,28 +103,24 @@ void setDimensions(int w, int h) {
 
 
 
-// OPEN CLOSE CAMERA
-void openCamera() {
-	webcam = new VideoCapture(2);
-}
 
-void releaseCamera() {
-	webcam->release();
-	delete webcam;
-	destroyWindow("webcam");
-}
 
 
 
 //CAMERA OPERATIONS
 void newFrame() {
+	lock_guard<mutex> guard(frame_mutex);
 	Mat f;
 	webcam->read(f);
 	resize(f, originalFrame, Size(width, height));
+	frameIsValid = true;
 }
 
-void getFrameCopy(Mat &img) {
+bool getFrameCopy(Mat &img) {
+	if (!frameIsValid) return false;
+	lock_guard<mutex> guard(frame_mutex);
 	originalFrame.copyTo(img);
+	return true;
 }
 
 
@@ -165,35 +171,16 @@ int getFilterID() {
 
 //FACE DETECTION
 void getFacePosition(Rect &f) {
+	lock_guard<mutex> guard(face_mutex);
 	f = facePosition;
 }
 
 void setFacePosition(Rect &f) {
+	lock_guard<mutex> guard(face_mutex);
 	facePosition = f;
 }
 
-void findFace() {
 
-	//GET CURRENT FRAME TO BE PROCESSED
-	Mat cameraFrame;
-	getFrameCopy(cameraFrame); 
-
-
-	Mat frame_gray;
-	cvtColor(cameraFrame, frame_gray, CV_BGR2GRAY);
-	equalizeHist(frame_gray, frame_gray);
-
-	//-- Detect faces
-	std::vector<Rect> faces;
-	face_cascade.detectMultiScale(frame_gray, faces, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
-
-
-	//SET DETECTION
-
-	//setFacePosition(faces.size() == 0 ? Rect(-1, -1, -1, 1) : faces[0]);
-	facePosition = faces.size() == 0 ? Rect(-1, -1, -1, 1) : faces[0];
-
-}
 
 
 
@@ -213,39 +200,10 @@ void overlayImage(cv::Mat &background, cv::Mat &foreground, cv::Mat &mask, cv::M
 	foreground(foregroundRect).copyTo(background(backgroundRect), mask(foregroundRect));
 
 
-
-	//background.copyTo(output);
-	//// start at the row indicated by location, or at row 0 if location.y is negative.
-	//for (int y = std::max(location.y, 0); y < background.rows; ++y)
-	//{
-	//	int fY = y - location.y; // because of the translation
-	//							 // we are done of we have processed all rows of the foreground image.
-	//	if (fY >= foreground.rows) break;
-	//	// start at the column indicated by location, 
-	//	// or at column 0 if location.x is negative.
-	//	for (int x = std::max(location.x, 0); x < background.cols; ++x)
-	//	{
-	//		int fX = x - location.x; // because of the translation. we are done with this row if the column is outside of the foreground image.
-	//		if (fX >= foreground.cols)
-	//			break;
-	//		// determine the opacity of the foregrond pixel, using its fourth (alpha) channel.
-	//		double opacity = ((double)foreground.data[fY * foreground.step + fX * foreground.channels() + 3]) / 255.;
-
-	//		// and now combine the background and foreground pixel, using the opacity,  but only if opacity > 0.
-	//		for (int c = 0; opacity > 0 && c < output.channels(); ++c)
-	//		{
-	//			unsigned char foregroundPx = foreground.data[fY * foreground.step + fX * foreground.channels() + c];
-	//			unsigned char backgroundPx = background.data[y * background.step + x * background.channels() + c];
-	//			output.data[y*output.step + output.channels()*x + c] = backgroundPx * (1. - opacity) + foregroundPx * opacity;
-	//		}
-	//	}
-	//}
-
-
 }
 
 
-void applyOverlay(Mat &dst, int filterID) {
+void applyOverlay(Mat &dst, int filterID=1) {
 
 	if (filterID == -1) {
 		putText(dst, "Cant read filterID", cvPoint(15, 75), FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(200, 200, 250), 1, CV_AA);
@@ -289,17 +247,93 @@ void applyOverlay(Mat &dst, int filterID) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+void findFace() {
+
+	//GET CURRENT FRAME TO BE PROCESSED
+	//MessageBox(0, L"1", L"--", 0);
+	Mat cameraFrame;
+	if (!getFrameCopy(cameraFrame)) {
+		//MessageBox(0, L"1", L"--", 0);
+		//if not available, wait until first image becomes available.
+		Sleep(20);
+		return;
+	};
+	//MessageBox(0, L"2", L"--", 0);
+	//this_thread::yield();
+
+	Mat frame_gray;
+	cvtColor(cameraFrame, frame_gray, CV_BGR2GRAY);
+
+	//this_thread::yield();
+
+	equalizeHist(frame_gray, frame_gray);
+
+	//this_thread::yield();
+
+	//-- Detect faces
+	std::vector<Rect> faces;
+	face_cascade.detectMultiScale(frame_gray, faces, 1.1, 2, 0 | CV_HAAR_SCALE_IMAGE, Size(30, 30));
+
+	//this_thread::yield();
+
+	//SET DETECTION
+	//MessageBox(0, L"3", L"--", 0);
+	setFacePosition(faces.size() == 0 ? Rect(-1, -1, -1, 1) : faces[0]);
+	//facePosition = faces.size() == 0 ? Rect(-1, -1, -1, 1) : faces[0];
+	//MessageBox(0, L"4", L"--", 0);
+}
+
+
+void faceDetectorProcess() {
+	while (cameraOpen) {
+		findFace();
+		//Sleep(50);
+	}
+}
+
+// OPEN CLOSE CAMERA
+void openCamera() {
+	webcam = new VideoCapture(2);
+	cameraOpen = true;
+	frameIsValid = false;
+	faceDetector = thread(faceDetectorProcess);
+}
+
+void releaseCamera() {
+	//MessageBox(0, L"release", L"", 0);
+	cameraOpen = false;
+	faceDetector.join();
+	webcam->release();
+	delete webcam;
+	webcam = nullptr;
+
+}
+
+
+
+
 void drawImage(BYTE *pData, long length) {
 
 	newFrame();
-	findFace();  //maybe move this to a separate thread
+	//findFace();  //maybe move this to a separate thread
 
 	Mat cameraFrame;
 	getFrameCopy(cameraFrame);
 
 	int filter_id = getFilterID();
 	applyOverlay(cameraFrame, filter_id);
-
+	//applyOverlay(cameraFrame);
 
 
 	flip(cameraFrame, cameraFrame, -1);
