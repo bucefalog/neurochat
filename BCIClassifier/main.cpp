@@ -26,6 +26,12 @@ using namespace std;
 
 
 
+void startClassification();
+void record(std::string fileName);
+void printMessage();
+void rawValues();
+
+
 int  main()
 {
 	if (initSharedMemory() != 0) return -1;
@@ -35,27 +41,63 @@ int  main()
 	}
 
 		
-	std::cout << "===================================================================\n";
-	std::cout << "  Example to get the average band power for a specific channel from \n the latest epoch\n";
-	std::cout << "===================================================================\n";
 	
 	//double max = std::numeric_limits<double>::max();
-	while (!_kbhit()) {
+	bool done = false;
 
-		BandPower powers[2] = {BandPower(),BandPower()};
-		if (getBandPowers(powers) == 0) {
-			std::cout << "(" << powers[0].alpha << "," << powers[1].alpha << ")  "
-				<< "(" << powers[0].low_beta << "," << powers[1].low_beta << ")  "
-				<< "(" << powers[0].high_beta << "," << powers[1].high_beta << ")\n";
+	printMessage();
 
-			//std::cout << "(" << powers[0].alpha << "," << powers[1].alpha << ")  "
-			//	<< "(" << powers[0].low_beta << "," << powers[1].low_beta << ")  "
-			//	<< "(" << powers[0].high_beta << "," << powers[1].high_beta << ")\n";
-
-			smWriteId(classify(powers));
+	while (!done){
+		if (!_kbhit()) {
+			Sleep(30);
+			continue;
 		}
 
+		int key = _getch();
+
+		cout << (char)key << endl << endl;
+
+		switch (key) {
+			case 'q':
+				done = true;
+				break;
+			case 'r':
+				cout << "Relax with your eyes open\n"
+					<< "until you hear the second beeping sound\n";
+				system("pause");
+				record("relaxed");
+				printMessage();
+				break;
+			case 'f':
+				cout << "focus on something\n"
+					<< "until you hear the second beeping sound\n";
+				system("pause");
+				record("focused");
+				printMessage();
+				break;
+			case 's':
+				cout << "starting classification...\n";
+				Sleep(1000);
+				cout << "press any key to stop...\n";
+				startClassification();
+				printMessage();
+				break;
+			case 'w':
+				cout << "printing raw values, print any key to stop...\n";
+				Sleep(1000);
+				rawValues();
+				printMessage();
+				break;
+			default:
+				cout << "invalid key...\n";
+				printMessage();
+
+		}
+
+		
+
 		Sleep(50);
+		
 
 	}
 
@@ -67,3 +109,92 @@ int  main()
 }
 
 
+#define RECORD_TIME 12 //record time in seconds
+#define DELAY_TIME 125
+void record(std::string fileName) {
+
+	ofstream file;
+	file.open(fileName + ".txt");
+
+	cout << "recordig in...\n";
+	cout << "3\n";
+	Sleep(1000);
+	cout << "2\n";
+	Sleep(1000);
+	cout << "1\n";
+	Sleep(1000);
+
+	int recordNumber = (RECORD_TIME * 1000) / DELAY_TIME;
+
+	cout << '\a';
+
+	for (int i = 0; i < recordNumber; i++) {
+
+		BandPower powers[2] = { BandPower(),BandPower() };
+		if (getBandPowers(powers) == 0) {
+			cout << "(" << powers[0].alpha << "," << powers[1].alpha << ")  "
+				<< "(" << powers[0].low_beta << "," << powers[1].low_beta << ")  "
+				<< "(" << powers[0].high_beta << "," << powers[1].high_beta << ")\n";
+
+			file << powers[0].alpha		<< "," 
+				 << powers[0].low_beta	<< "," 
+				 << powers[0].high_beta << "," 
+				 << powers[1].alpha		<< ","
+				 << powers[1].low_beta	<< ","
+				 << powers[1].high_beta << "\n";
+			
+		}
+		Sleep(DELAY_TIME);
+	}
+
+	cout << '\a';
+	file.close();
+
+}
+void printMessage() {
+	while (_kbhit()) _getch();
+	//system("cls");
+	cout << endl << endl;
+	cout <<"Choose an option: \n"
+		<< endl
+		<< "r - record relaxed state\n"
+		<< "f - record focused state\n"
+		<< "s - start classificationg\n"
+		<< "w - print raw values\n"
+		<< "q - quit\n"
+		<< endl
+		<< "Selection: ";
+}
+
+void startClassification() {
+
+	Sleep(1000);
+	while (!_kbhit()) {
+		BandPower powers[2] = { BandPower(),BandPower() };
+		if (getBandPowers(powers) == 0) {
+			cout << "(" << powers[0].alpha << "," << powers[1].alpha << ")  "
+				<< "(" << powers[0].low_beta << "," << powers[1].low_beta << ")  "
+				<< "(" << powers[0].high_beta << "," << powers[1].high_beta << ")\n";
+
+			smWriteId(classify(powers));
+		}
+		Sleep(DELAY_TIME);
+	}
+		
+}
+
+void rawValues() {
+
+	Sleep(500);
+	while (!_kbhit()) {
+		BandPower powers[2] = { BandPower(),BandPower() };
+		if (getBandPowers(powers) == 0) {
+			cout << "(" << powers[0].alpha << "," << powers[1].alpha << ")  "
+				<< "(" << powers[0].low_beta << "," << powers[1].low_beta << ")  "
+				<< "(" << powers[0].high_beta << "," << powers[1].high_beta << ")\n";
+
+		}
+		Sleep(DELAY_TIME);
+	}
+
+}
