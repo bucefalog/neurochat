@@ -190,7 +190,7 @@ void BCIDataStream::onStreamDataReceived(
 
     }else if(stream=="pow"){
         //GET COEFFICIENTS
-        #define NUM_VARS_POW 20
+        #define NUM_VARS_POW 25
         double coefs[NUM_VARS_POW];
         for(int i=0 ; i<NUM_VARS_POW; i++){
             coefs[i] = data[i].toDouble(-1);
@@ -200,8 +200,8 @@ void BCIDataStream::onStreamDataReceived(
         for(int i=1;i<NUM_VARS_POW;i++) strFile += "," + QString::number(coefs[i]);
 
         QString strStdout = QString::number(coefs[0]);
-        for(int i=1;i<4;i++) strStdout += "," + QString::number(coefs[i]);
-        for(int i=NUM_VARS_POW-4;i<NUM_VARS_POW;i++) strStdout += "," + QString::number(coefs[i]);
+        for(int i=1;i<5;i++) strStdout += "," + QString::number(coefs[i]);
+        for(int i=NUM_VARS_POW-5;i<NUM_VARS_POW;i++) strStdout += "," + QString::number(coefs[i]);
 
 
         std::lock_guard<std::mutex> guard(global_mutex);
