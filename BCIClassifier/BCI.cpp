@@ -93,8 +93,8 @@ int getBandPowers(BandPower powers[]) {
 	
 }
 
-#define RELAXED 0
-#define FOCUSED 1
+#define RELAXED   0
+#define FOCUSED   1
 #define WONDERING 2
 
 int lastResult = -1;
