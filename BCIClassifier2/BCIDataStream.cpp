@@ -20,6 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>
 #include <QtDebug>
 #include "ConsoleThread.h"
 #include "sharedmemory.h"
+#include <vector>
+#include <deque>
+#include <algorithm>
+#include <functional>
 
 //STATES:
 #define DO_NOTHING 0
@@ -131,15 +135,77 @@ void BCIDataStream::onCloseSessionOk() {
 }
 
 
-
-int classify_filter_met(double coefs[]){
-   return -1;
-}
-
-
+#define NUM_SAMPLES 31
 int classify_filter_pow(double coefs[]){
-   return -1;
+
+   static std::deque<double> alphas;
+   static std::deque<double> lowBetas;
+   static std::deque<double> highBetas;
+
+   alphas.push_back(coefs[1]);
+   alphas.push_back(coefs[21]);
+   lowBetas.push_back(coefs[2]);
+   lowBetas.push_back(coefs[22]);
+   highBetas.push_back(coefs[3]);
+   highBetas.push_back(coefs[23]);
+
+
+   if(alphas.size() > 2*NUM_SAMPLES) {
+       alphas.pop_front();
+       alphas.pop_front();
+       lowBetas.pop_front();
+       lowBetas.pop_front();
+       highBetas.pop_front();
+       highBetas.pop_front();
+   }
+
+   std::deque<double> auxAlphas   = alphas;
+   std::deque<double> auxLowBetas = lowBetas;
+   std::deque<double> auxHighBetas= highBetas;
+
+   QString dbg =  "alphas: ";
+   for(int i=0;i<6 && i < auxAlphas.size();i++)
+        dbg+= QString::number(auxAlphas[i]) + " , ";
+
+   qInfo() << dbg;
+
+   std::nth_element(auxAlphas.begin(), auxAlphas.begin() + auxAlphas.size()/2, auxAlphas.end());
+   std::nth_element(auxLowBetas.begin(), auxLowBetas.begin() + auxLowBetas.size()/2, auxLowBetas.end());
+   std::nth_element(auxHighBetas.begin(), auxHighBetas.begin() + auxHighBetas.size()/2, auxHighBetas.end());
+
+
+
+   double mAlpha = auxAlphas[ceil(auxAlphas.size()/2)];
+   qInfo() << "median:  " << mAlpha;
+   double mLowBeta = auxLowBetas[ceil(auxLowBetas.size()/2)];
+   double mHighBeta = auxHighBetas[ceil(auxHighBetas.size()/2)];
+
+
+
+
+    #define RELAXED 0
+    #define FOCUSED 1
+    #define WONDERING 2
+
+
+   int filter_id = RELAXED;
+   double maxValue  = mAlpha;
+   if( mLowBeta > maxValue){
+       filter_id = WONDERING;
+       maxValue = mLowBeta;
+   }
+   if(mHighBeta > maxValue){
+       filter_id = FOCUSED;
+       maxValue = mHighBeta;
+   }
+
+   return filter_id;
 }
+
+
+//int classify_filter_met(double coefs[]){
+//   return -1;
+//}
 
 void BCIDataStream::onStreamDataReceived(
         QString sessionId, QString stream, double time, const QJsonArray &data) {
@@ -170,7 +236,7 @@ void BCIDataStream::onStreamDataReceived(
 
         switch (state) {
         case RECORD:{
-            qInfo() <<  "met: " + str;
+            //qInfo() <<  "met: " + str;
 
             QTextStream stream( fileMet );
             stream << str << endl;
@@ -178,12 +244,12 @@ void BCIDataStream::onStreamDataReceived(
             break;
         }
         case PRINT:
-            qInfo() << "met: " + str;
+            //qInfo() << "met: " + str;
             break;
         case CLASSIFY:
-            qInfo() <<  "met: " + str;
-            int filter_id = classify_filter_met(coefs);
-            smWriteId(filter_id);
+            //qInfo() <<  "met: " + str;
+            //int filter_id = classify_filter_met(coefs);
+            //smWriteId(filter_id);
             break;
         }
 
@@ -219,8 +285,9 @@ void BCIDataStream::onStreamDataReceived(
             qInfo() << strStdout;
             break;
         case CLASSIFY:
-            qInfo() << strStdout;
+            //qInfo() << strStdout;
             int filter_id = classify_filter_pow(coefs);
+            qInfo() << "filter: " << filter_id;
             smWriteId(filter_id);
             break;
         }
